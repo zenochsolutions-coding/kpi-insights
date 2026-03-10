@@ -51,7 +51,7 @@ async function init() {
 
     const prompt =
       "You are a senior call center performance analyst with 20 years of experience coaching agents and optimizing outbound sales operations. Analyze the following KPI data with depth, specificity, and actionable precision. Do not be generic. Reference the actual numbers. Identify what is working, what is underperforming, and why. Respond ONLY with a valid JSON object — no markdown, no explanation, no code fences.\n\n" +
-      "CAMPAIGN TARGETS: Viktoria = 75 calls/day, Mackenzie = 90 calls/day, Combined = 165 calls/day\n" +
+      "BUSINESS CONTEXT: There is ONE calling agent named Seth who makes all of the calls across two campaigns. Viktoria and Mackenzie are real estate agents who RECEIVE transferred leads from Seth — Viktoria covers Northern California and Seth only calls for her for 3 hours, Mackenzie covers Southern California and Seth calls for her for 5 hours. Transfers represent leads successfully handed off to these real estate agents on a warm transfer. Seth's targets are 75 calls/day for Viktoria's pipeline and 90 calls/day for Mackenzie's pipeline, combined target 165 calls/day.\n" +
       "PERFORMANCE TARGETS: Contact Rate = 15%, Conversion Rate = 10-15%\n" +
       "TOTAL LEAD POOL: 3,326 leads\n\n" +
       "CURRENT METRICS:\n" +
