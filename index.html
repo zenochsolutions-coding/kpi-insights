@@ -84,7 +84,10 @@ async function init() {
     });
 
     const groqData = await groqRes.json();
-    const raw = groqData.choices[0].message.content.trim()
+    if (!groqData.choices || !groqData.choices[0]) {
+  throw new Error("Groq error: " + JSON.stringify(groqData));
+}
+const raw = groqData.choices[0].message.content.trim()
       .replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/\s*```$/i,"").trim();
     const ins = JSON.parse(raw);
     document.getElementById("root").innerHTML = buildHTML(ins);
