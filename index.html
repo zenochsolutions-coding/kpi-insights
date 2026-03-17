@@ -1,104 +1,167 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:#0F1117;color:#FFFFFF;font-family:Roboto,Arial,sans-serif;font-size:12px;padding:12px;height:100vh;overflow:hidden}
-.grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;height:calc(100vh - 24px)}
-.panel{background:#161B27;border:1px solid #252D3D;border-radius:4px;padding:10px 14px;overflow:hidden}
-h3{font-size:10px;text-transform:uppercase;letter-spacing:.09em;margin-bottom:8px;font-weight:600}
-ul{list-style:none}
-li{padding:3px 0 3px 16px;position:relative;color:#C8CDE0;line-height:1.5;font-size:12px}
-.dot{position:absolute;left:0;top:3px;font-size:8px}
-.loading{display:flex;align-items:center;justify-content:center;height:100%;color:#8A92A6;font-size:13px}
-.error{color:#E53935;padding:10px;font-size:12px}
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0F1117;
+    font-family: 'Roboto', sans-serif;
+    color: #FFFFFF;
+    min-height: 100vh;
+    display: flex;
+    align-items: stretch;
+  }
+
+  #container {
+    width: 100%;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  #status {
+    font-size: 13px;
+    color: #8A92A6;
+    text-align: center;
+    padding: 8px 0;
+    min-height: 22px;
+  }
+
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    flex: 1;
+  }
+
+  .column {
+    background: #161B27;
+    border: 1px solid #252D3D;
+    border-radius: 4px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .col-header {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #252D3D;
+  }
+
+  .col-header.perf   { color: #2DD4BF; }
+  .col-header.trend  { color: #60A5FA; }
+  .col-header.alert  { color: #F59E0B; }
+  .col-header.rec    { color: #A78BFA; }
+
+  .insight-card {
+    background: #0F1117;
+    border: 1px solid #252D3D;
+    border-radius: 4px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #D1D5DB;
+    flex: 1;
+  }
+
+  .error-msg {
+    color: #F87171;
+    font-size: 12px;
+    text-align: center;
+    padding: 20px;
+  }
 </style>
 </head>
 <body>
-<div id="root"><div class="loading">Loading AI insights...</div></div>
+<div id="container">
+  <div id="status">Loading KPI data…</div>
+  <div id="grid"></div>
+</div>
+
 <script>
-const GROQ_API_KEY = "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";
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyjCLXZFiD6hIZb7HwouyUbUPZxOMa1JKPQ0djHnktaKjL7g17YmAjQaNw4aZVdkSGsyA/exec";
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyjCLXZFiD6hIZb7HwouyUbUPZxOMa1JKPQ0djHnktaKjL7g17YmAjQaNw4aZVdkSGsyA/exec";
+  const WORKER_URL      = "https://odd-band-70d3.zenochsolutions.workers.dev";
 
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;");
-}
+  const COLUMNS = [
+    { key: "performanceSummary", label: "Performance Summary", cls: "perf"  },
+    { key: "trendAnalysis",      label: "Trend Analysis",      cls: "trend" },
+    { key: "anomaliesAlerts",    label: "Anomalies & Alerts",  cls: "alert" },
+    { key: "recommendations",    label: "Recommendations",     cls: "rec"   }
+  ];
 
-function bullets(arr, color) {
-  return arr.map(item =>
-    '<li><span class="dot" style="color:'+color+'">&#9679;</span>'+escapeHtml(item)+'</li>'
-  ).join("");
-}
-
-function buildHTML(ins) {
-  return '<div class="grid">' +
-    '<div class="panel"><h3 style="color:#4F9CF9">Performance Summary</h3><ul>'+bullets(ins.performanceSummary,"#4F9CF9")+'</ul></div>' +
-    '<div class="panel"><h3 style="color:#4F9CF9">Trend Analysis</h3><ul>'+bullets(ins.trendAnalysis,"#4F9CF9")+'</ul></div>' +
-    '<div class="panel"><h3 style="color:#E53935">Anomalies &amp; Alerts</h3><ul>'+bullets(ins.anomaliesAlerts,"#E53935")+'</ul></div>' +
-    '<div class="panel"><h3 style="color:#4CAF50">Recommendations</h3><ul>'+bullets(ins.recommendations,"#4CAF50")+'</ul></div>' +
-    '</div>';
-}
-
-async function init() {
-  try {
-    const dataRes = await fetch(APPS_SCRIPT_URL);
-    const d = await dataRes.json();
-
-    const prompt =
-      "You are a senior call center performance analyst with 20 years of experience coaching agents and optimizing outbound sales operations. Analyze the following KPI data with depth, specificity, and actionable precision. Do not be generic. Reference the actual numbers. Identify what is working, what is underperforming, and why. Respond ONLY with a valid JSON object — no markdown, no explanation, no code fences.\n\n" +
-      "BUSINESS CONTEXT: There is ONE calling agent named Seth who makes all of the calls across two campaigns. Viktoria and Mackenzie are real estate agents who RECEIVE transferred leads from Seth — Viktoria covers Northern California and Seth only calls for her for 3 hours, Mackenzie covers Southern California and Seth calls for her for 5 hours. Transfers represent leads successfully handed off to these real estate agents on a warm transfer. Seth's targets are 75 calls/day for Viktoria's pipeline and 90 calls/day for Mackenzie's pipeline, combined target 165 calls/day.\n" +
-      "PERFORMANCE TARGETS: Contact Rate = 15%, Conversion Rate = 10-15%\n" +
-      "TOTAL LEAD POOL: 3,326 leads\n\n" +
-      "CURRENT METRICS:\n" +
-      "Total Calls: " + d.totalCalls + " (combined target: 165/day)\n" +
-      "Transfers: " + d.transfers + " | Transfer Rate: " + d.transferRate + "%\n" +
-      "Contacts: " + d.contacts + " | Contact Rate: " + d.contactRate + "% (target: 15%)\n" +
-      "Conversion Rate (Transfers / Contacts): " + d.conversionRate + "% (target: 10-15%)\n" +
-      "Data Penetration: " + d.dataPen + "% of 3,326 leads dialed\n" +
-      "Callbacks: " + d.callbacks + " | Not Interested: " + d.notInterested + "\n" +
-      "Voicemail: " + d.voicemail + " | Not Available: " + d.notAvailable + "\n" +
-      "Do Not Call: " + d.doNotCall + " | Wrong Number: " + d.wrongNumber + "\n\n" +
-      "CAMPAIGN BREAKDOWN:\n" +
-      "Viktoria: " + d.viktoriaCalls + " calls | " + d.viktoriaTransfers + " transfers | " + d.viktoriaConvRate + "% conversion | " + d.viktoriaContactRate + "% contact rate\n" +
-      "Mackenzie: " + d.mackenzieCalls + " calls | " + d.mackenzieTransfers + " transfers | " + d.mackenzieConvRate + "% conversion | " + d.mackenzieContactRate + "% contact rate\n\n" +
-      'Respond with this exact JSON structure. Each array must contain exactly 3 strings. Each string must be a complete, specific, data-driven insight minimum 15 words each. Reference actual numbers:\n' +
-      '{"performanceSummary":["...","...","..."],"trendAnalysis":["...","...","..."],"anomaliesAlerts":["...","...","..."],"recommendations":["...","...","..."]}';
-
-    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + GROQ_API_KEY,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 1600,
-        temperature: 0.5
-      })
-    });
-
-    const groqData = await groqRes.json();
-    if (!groqData.choices || !groqData.choices[0]) {
-  throw new Error("Groq error: " + JSON.stringify(groqData));
-}
-const raw = groqData.choices[0].message.content.trim()
-      .replace(/^```json\s*/i,"").replace(/^```\s*/i,"").replace(/\s*```$/i,"").trim();
-    const ins = JSON.parse(raw);
-    document.getElementById("root").innerHTML = buildHTML(ins);
-
-  } catch(err) {
-    document.getElementById("root").innerHTML =
-      '<div class="panel error"><strong>Error:</strong> ' + escapeHtml(err.message) + '</div>';
+  function setStatus(msg) {
+    document.getElementById("status").textContent = msg;
   }
-}
 
-init();
+  function renderInsights(data) {
+    const grid = document.getElementById("grid");
+    grid.innerHTML = "";
+
+    COLUMNS.forEach(col => {
+      const div = document.createElement("div");
+      div.className = "column";
+
+      const header = document.createElement("div");
+      header.className = "col-header " + col.cls;
+      header.textContent = col.label;
+      div.appendChild(header);
+
+      const items = data[col.key];
+      if (Array.isArray(items)) {
+        items.forEach(text => {
+          const card = document.createElement("div");
+          card.className = "insight-card";
+          card.textContent = text;
+          div.appendChild(card);
+        });
+      }
+
+      grid.appendChild(div);
+    });
+  }
+
+  function renderError(msg) {
+    document.getElementById("grid").innerHTML =
+      '<div class="error-msg">' + msg + '</div>';
+  }
+
+  async function run() {
+    try {
+      setStatus("Fetching KPI data…");
+      const kpiRes = await fetch(APPS_SCRIPT_URL);
+      if (!kpiRes.ok) throw new Error("Apps Script fetch failed: " + kpiRes.status);
+      const kpiData = await kpiRes.json();
+
+      setStatus("Generating AI insights…");
+      const workerRes = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(kpiData)
+      });
+      if (!workerRes.ok) throw new Error("Worker fetch failed: " + workerRes.status);
+      const insights = await workerRes.json();
+
+      if (insights.error) throw new Error("Worker error: " + insights.error);
+
+      setStatus("");
+      renderInsights(insights);
+
+    } catch (err) {
+      setStatus("");
+      renderError("Error: " + err.message);
+    }
+  }
+
+  run();
 </script>
 </body>
 </html>
